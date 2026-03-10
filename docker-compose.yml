@@ -1,0 +1,37 @@
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: simcity_db
+    environment:
+      POSTGRES_USER: simcity_user
+      POSTGRES_PASSWORD: simcity_pass
+      POSTGRES_DB: simcity_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simcity_user -d simcity_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: simcity_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://simcity_user:simcity_pass@db:5432/simcity_db
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
